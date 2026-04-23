@@ -12,7 +12,18 @@ import clientProductRouter from './routes/clientProduct.route.js';
 const app = express();
 
 const corsOptions = {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+        const allowedOrigins = [
+            process.env.FRONTEND_URL || 'http://localhost:3000',
+            'https://gram2ghor-frontend.vercel.app',
+            'https://gram2ghor-frontend.vercel.app/'
+        ];
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }
 app.use(cors(corsOptions))
