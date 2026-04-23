@@ -5,110 +5,119 @@ import mongoose from "mongoose";
 export const createProductController = async (request, response) => {
     try {
         const {
-            name,
+            firstName,
+            lastName,
             category,
-            unit,
-            stock,
-            price,
-            discount,
+            weights,
             description
-        } = request.body
+        } = request.body;
 
-        // multiple image upload fix - handle missing files array
-        const image = request.files ? request.files.map(file => file.path) : [];
+        const files = request.files || {};
+        const coverImageFile = files['cover_image'];
+        const cover_image = coverImageFile ? (Array.isArray(coverImageFile) ? coverImageFile[0]?.path : coverImageFile.path) : "";
 
-        if (!name || image.length === 0 || !category || !unit || !price || !description) {
+        if (!firstName || !category || !weights) {
             return response.status(400).json({
-                message: "Enter required fields",
+                message: "Enter required fields (firstName, category, weights)",
                 error: true,
                 success: false
-            })
+            });
         }
 
-        // Parse category if it's sent as a stringified array from FormData
-        let categoryList = [];
-        try {
-            categoryList = typeof category === 'string' ? JSON.parse(category) : category;
-        } catch (error) {
-            categoryList = typeof category === 'string' ? category.split(',') : [category];
-        }
-        
-        if (!Array.isArray(categoryList)) {
-            categoryList = [categoryList];
-        }
-
-        let validCategoryIds = [];
-        for (const cat of categoryList) {
-            if (mongoose.Types.ObjectId.isValid(cat)) {
-                validCategoryIds.push(cat);
+        let categoryId = category;
+        if (typeof category === 'string') {
+            if (mongoose.Types.ObjectId.isValid(category)) {
+                categoryId = category;
             } else {
-                 // Lookup category by name if a name like "Honey" is passed
-                 const foundCat = await CategoryModel.findOne({ category_name: cat });
-                 if (foundCat) {
-                     validCategoryIds.push(foundCat._id);
-                 } else {
-                     return response.status(400).json({
-                         message: `Category not found: ${cat}`,
-                         error: true,
-                         success: false
-                     })
-                 }
+                const foundCat = await CategoryModel.findOne({ category_name: category });
+                if (!foundCat) {
+                    return response.status(400).json({
+                        message: `Category not found: ${category}`,
+                        error: true,
+                        success: false
+                    });
+                }
+                categoryId = foundCat._id;
             }
         }
 
+        let weightsArray = [];
+        try {
+            weightsArray = typeof weights === 'string' ? JSON.parse(weights) : weights;
+        } catch (error) {
+            return response.status(400).json({
+                message: "Invalid weights format",
+                error: true,
+                success: false
+            });
+        }
+
+        const processedWeights = weightsArray.map((weightObj, index) => {
+            const fieldKey = `weight_images_${index}`;
+            const weightImageFiles = files[fieldKey];
+            let weightImages = [];
+            
+            if (weightImageFiles) {
+                weightImages = Array.isArray(weightImageFiles) 
+                    ? weightImageFiles.map(f => f.path)
+                    : [weightImageFiles.path];
+            }
+
+            return {
+                weight: weightObj.weight,
+                stock: weightObj.stock,
+                price: weightObj.price,
+                images: weightImages
+            };
+        });
+
         const product = new ProductModel({
-            name,
-            image,
-            category: validCategoryIds,
-            unit,
-            stock,
-            price,
-            discount,
-            description
-        })
-        const saveProduct = await product.save()
+            cover_image,
+            firstName,
+            lastName: lastName || "",
+            category: categoryId,
+            weights: processedWeights,
+            description: description || ""
+        });
+
+        const saveProduct = await product.save();
 
         return response.json({
             message: "Product Created Successfully",
             data: saveProduct,
             error: false,
             success: true
-        })
+        });
 
     } catch (error) {
         return response.status(500).json({
             message: error.message || error,
             error: true,
             success: false
-        })
+        });
     }
 };
 
 export const getProductController = async (request, response) => {
     try {
+        let { page, limit, search } = request.body;
 
-        let { page, limit, search } = request.body
-
-        if (!page) {
-            page = 1
-        }
-
-        if (!limit) {
-            limit = 10
-        }
+        if (!page) page = 1;
+        if (!limit) limit = 10;
 
         const query = search ? {
-            $text: {
-                $search: search
-            }
-        } : {}
+            $or: [
+                { firstName: { $regex: search, $options: 'i' } },
+                { lastName: { $regex: search, $options: 'i' } }
+            ]
+        } : {};
 
-        const skip = (page - 1) * limit
+        const skip = (page - 1) * limit;
 
         const [data, totalCount] = await Promise.all([
-            ProductModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('category subCategory'),
+            ProductModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('category'),
             ProductModel.countDocuments(query)
-        ])
+        ]);
 
         return response.json({
             message: "Product data",
@@ -117,158 +126,151 @@ export const getProductController = async (request, response) => {
             totalCount: totalCount,
             totalNoPage: Math.ceil(totalCount / limit),
             data: data
-        })
+        });
     } catch (error) {
         return response.status(500).json({
             message: error.message || error,
             error: true,
             success: false
-        })
+        });
     }
-}
+};
 
 export const getProductByCategory = async (request, response) => {
     try {
-        const { id } = request.body
+        const { id } = request.body;
 
         if (!id) {
             return response.status(400).json({
                 message: "provide category id",
                 error: true,
                 success: false
-            })
+            });
         }
 
         const product = await ProductModel.find({
             category: { $in: id }
-        }).limit(15)
+        }).limit(15);
 
         return response.json({
             message: "category product list",
             data: product,
             error: false,
             success: true
-        })
+        });
     } catch (error) {
         return response.status(500).json({
             message: error.message || error,
             error: true,
             success: false
-        })
+        });
     }
-}
-
+};
 
 export const getProductDetails = async (request, response) => {
     try {
-        const { productId } = request.body
+        const { productId } = request.body;
 
-        const product = await ProductModel.findOne({ _id: productId })
-
+        const product = await ProductModel.findOne({ _id: productId }).populate('category');
 
         return response.json({
             message: "product details",
             data: product,
             error: false,
             success: true
-        })
+        });
 
     } catch (error) {
         return response.status(500).json({
             message: error.message || error,
             error: true,
             success: false
-        })
+        });
     }
-}
+};
 
-//update product
 export const updateProductDetails = async (request, response) => {
     try {
-        const { _id } = request.body
+        const { _id } = request.body;
 
         if (!_id) {
             return response.status(400).json({
                 message: "provide product _id",
                 error: true,
                 success: false
-            })
+            });
         }
 
-        const updateProduct = await ProductModel.updateOne({ _id: _id }, {
-            ...request.body
-        })
+        const updateData = { ...request.body };
+        delete updateData._id;
+
+        const updateProduct = await ProductModel.updateOne({ _id: _id }, updateData);
 
         return response.json({
             message: "updated successfully",
             data: updateProduct,
             error: false,
             success: true
-        })
+        });
 
     } catch (error) {
         return response.status(500).json({
             message: error.message || error,
             error: true,
             success: false
-        })
+        });
     }
-}
+};
 
-//delete product
 export const deleteProductDetails = async (request, response) => {
     try {
-        const { _id } = request.body
+        const { _id } = request.body;
 
         if (!_id) {
             return response.status(400).json({
                 message: "provide _id ",
                 error: true,
                 success: false
-            })
+            });
         }
 
-        const deleteProduct = await ProductModel.deleteOne({ _id: _id })
+        const deleteProduct = await ProductModel.deleteOne({ _id: _id });
 
         return response.json({
             message: "Delete successfully",
             error: false,
             success: true,
             data: deleteProduct
-        })
+        });
     } catch (error) {
         return response.status(500).json({
             message: error.message || error,
             error: true,
             success: false
-        })
+        });
     }
-}
+};
 
-//search product
 export const searchProduct = async (request, response) => {
     try {
-        let { search, page, limit } = request.body
+        let { search, page, limit } = request.body;
 
-        if (!page) {
-            page = 1
-        }
-        if (!limit) {
-            limit = 10
-        }
+        if (!page) page = 1;
+        if (!limit) limit = 10;
 
         const query = search ? {
-            $text: {
-                $search: search
-            }
-        } : {}
+            $or: [
+                { firstName: { $regex: search, $options: 'i' } },
+                { lastName: { $regex: search, $options: 'i' } }
+            ]
+        } : {};
 
-        const skip = (page - 1) * limit
+        const skip = (page - 1) * limit;
 
         const [data, dataCount] = await Promise.all([
-            ProductModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('category subCategory'),
+            ProductModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('category'),
             ProductModel.countDocuments(query)
-        ])
+        ]);
 
         return response.json({
             message: "Product data",
@@ -279,14 +281,13 @@ export const searchProduct = async (request, response) => {
             totalPage: Math.ceil(dataCount / limit),
             page: page,
             limit: limit
-        })
-
+        });
 
     } catch (error) {
         return response.status(500).json({
             message: error.message || error,
             error: true,
             success: false
-        })
+        });
     }
-}
+};

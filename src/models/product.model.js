@@ -1,58 +1,58 @@
 import mongoose from "mongoose";
 
-const productSchema = new mongoose.Schema({
-    name: {
+const weightSchema = new mongoose.Schema({
+    weight: {
         type: String,
-        required: true
-    },
-    image: {
-        type: Array,
-        default: []
-    },
-    category: [
-        {
-            type: mongoose.Schema.ObjectId,
-            ref: 'category'
-        }
-    ],
-    unit: {
-        type: String,
-        default: "",
         required: true
     },
     stock: {
         type: Number,
-        default: null,
+        default: 0,
         required: true
     },
     price: {
         type: Number,
-        defualt: null,
         required: true
     },
-    discount: {
-        type: Number,
-        default: null
+    images: {
+        type: Array,
+        default: []
+    }
+}, { _id: false });
+
+const productSchema = new mongoose.Schema({
+    cover_image: {
+        type: String,
+        default: ""
     },
+    firstName: {
+        type: String,
+        required: true
+    },
+    lastName: {
+        type: String,
+        default: ""
+    },
+    category: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'category',
+        required: true
+    },
+    weights: [weightSchema],
     description: {
         type: String,
-        default: "",
-        required: true
+        default: ""
     }
 }, {
     timestamps: true
-})
+});
 
-//create a text index
 productSchema.index({
-    name: "text",
+    firstName: "text",
+    lastName: "text",
     description: 'text'
-}, {
-    name: 10,
-    description: 5
-})
+});
 
+const ProductModel = mongoose.model('product', productSchema);
 
-const ProductModel = mongoose.model('product', productSchema)
-
-export default ProductModel
+export default ProductModel;

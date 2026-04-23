@@ -5,11 +5,14 @@ dotenv.config()
 import connectDB from "./config/connectDB.js";
 import categoryRouter from './routes/category.route.js';
 import productRouter from './routes/product.route.js';
+import headerRouter from './routes/header.route.js';
+import clientHeaderRouter from './routes/clientHeader.route.js';
+import clientProductRouter from './routes/clientProduct.route.js';
 
 const app = express();
 
 const corsOptions = {
-    origin: process.env.FRONTEND_URL || '*',
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true
 }
 app.use(cors(corsOptions))
@@ -28,6 +31,9 @@ app.get("/", (request, response) => {
 
 app.use("/api/admin/category", categoryRouter);
 app.use("/api/admin/product", productRouter);
+app.use("/api/admin/header", headerRouter);
+app.use("/api/client/header", clientHeaderRouter);
+app.use("/api/client/product", clientProductRouter);
 
 connectDB().then(() => {
     app.listen(PORT, () => {
