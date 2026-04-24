@@ -5,7 +5,7 @@ const clientProductRouter = Router();
 
 clientProductRouter.get('/products', async (req, res) => {
     try {
-        const { page, limit, search } = req.query;
+        const { page, limit, search, category } = req.query;
 
         const pageNum = page ? parseInt(page) : 1;
         const limitNum = limit ? parseInt(limit) : 10;
@@ -16,6 +16,10 @@ clientProductRouter.get('/products', async (req, res) => {
                 { lastName: { $regex: search, $options: 'i' } }
             ]
         } : {};
+
+        if (category) {
+            query.category = category;
+        }
 
         const skip = (pageNum - 1) * limitNum;
 
