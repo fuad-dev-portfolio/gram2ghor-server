@@ -1,19 +1,27 @@
 import mongoose, { Schema, model } from 'mongoose';
 
 const orderItemSchema = new Schema({
-    product: {
-        type: Schema.Types.ObjectId,
-        ref: 'Product',
-        required: true
+    productId: {
+        type: String,
+        default: ''
     },
-    productName: String,
-    productImage: String,
+    productName: {
+        type: String,
+        default: ''
+    },
+    productImage: {
+        type: String,
+        default: ''
+    },
     quantity: {
         type: Number,
         required: true,
         min: 1
     },
-    weight: String,
+    weight: {
+        type: String,
+        default: ''
+    },
     price: {
         type: Number,
         required: true
@@ -79,19 +87,6 @@ const orderSchema = new Schema({
     notes: String
 }, {
     timestamps: true
-});
-
-const generateOrderId = () => {
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const random = Math.random().toString(36).substring(2, 7).toUpperCase();
-    return `GG-${timestamp}${random}`;
-};
-
-orderSchema.pre('save', async function(next) {
-    if (!this.orderId) {
-        this.orderId = generateOrderId();
-    }
-    next();
 });
 
 const OrderModel = model('Order', orderSchema);
