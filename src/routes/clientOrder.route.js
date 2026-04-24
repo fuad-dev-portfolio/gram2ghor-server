@@ -15,10 +15,18 @@ clientOrderRouter.post('/create', async (req, res) => {
             customerPhone, 
             customerEmail, 
             shippingAddress, 
-            city = '',
+            deliveryArea = 'inside_dhaka',
             paymentMethod = 'cash_on_delivery',
             notes = ''
         } = req.body;
+        
+        const deliveryCharges = {
+            inside_dhaka: 70,
+            outside_dhaka: 100,
+            outside_bangladesh: 130
+        };
+
+        const deliveryCharge = deliveryCharges[deliveryArea] || 70;
         
         let guestId = getGuestId(req);
 
@@ -60,7 +68,6 @@ clientOrderRouter.post('/create', async (req, res) => {
         }));
 
         const subtotal = cart.totalAmount;
-        const deliveryCharge = 0;
         const totalAmount = subtotal + deliveryCharge;
 
         // Generate order ID
@@ -75,7 +82,7 @@ clientOrderRouter.post('/create', async (req, res) => {
             customerPhone,
             customerEmail: customerEmail || '',
             shippingAddress,
-            city,
+            city: deliveryArea,
             items: orderItems,
             subtotal,
             deliveryCharge,
