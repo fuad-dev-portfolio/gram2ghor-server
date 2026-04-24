@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import CartModel from '../models/cart.model.js';
-import ProductModel from '../models/product.model.js';
 
 const clientCartRouter = Router();
 
@@ -11,38 +10,26 @@ const getGuestId = (req) => {
 clientCartRouter.get('/get', async (req, res) => {
     try {
         let guestId = getGuestId(req);
-        
         if (!guestId) {
             guestId = `guest_${Date.now()}`;
         }
 
-        console.log('GET cart, guestId:', guestId);
-
-        let cart = await CartModel.findOne({ guestId }).populate('items.product');
-        console.log('Found cart:', cart?._id, 'items:', cart?.items?.length);
+        let cart = await CartModel.findOne({ guestId });
 
         if (!cart) {
-            // Create empty cart if doesn't exist
             cart = new CartModel({
                 guestId: guestId,
                 items: [],
                 totalAmount: 0
             });
             await cart.save();
-            console.log('Created new cart:', cart._id);
         }
 
         res.setHeader('guest-id', guestId);
-        res.setHeader('Access-Control-Allow-Headers', 'guest-id');
         
         res.json({
             message: "Cart data",
-            data: {
-                _id: cart._id,
-                guestId: cart.guestId,
-                items: cart.items,
-                totalAmount: cart.totalAmount
-            },
+            data: cart,
             error: false,
             success: true
         });
@@ -58,33 +45,21 @@ clientCartRouter.get('/get', async (req, res) => {
 
 clientCartRouter.post('/add', async (req, res) => {
     try {
-        const { productId, quantity = 1, weight, price } = req.body;
+        const { productId, productName, productImage, quantity = 1, weight, price } = req.body;
         let guestId = getGuestId(req);
         
         if (!guestId) {
             guestId = `guest_${Date.now()}`;
         }
 
-        console.log('ADD to cart, guestId:', guestId, 'productId:', productId);
-
-        if (!productId) {
+        if (!productId || !price) {
             return res.status(400).json({
-                message: "Product ID is required",
+                message: "Product ID and price are required",
                 error: true,
                 success: false
             });
         }
 
-        const product = await ProductModel.findById(productId);
-        if (!product) {
-            return res.status(404).json({
-                message: "Product not found",
-                error: true,
-                success: false
-            });
-        }
-
-        // Find or create cart
         let cart = await CartModel.findOne({ guestId });
         
         if (!cart) {
@@ -95,48 +70,34 @@ clientCartRouter.post('/add', async (req, res) => {
             });
         }
 
-        // Calculate item price
-        const itemPrice = price || product.weights[0]?.price || 0;
-        const itemWeight = weight || '';
-
         // Check if item already exists
         const existingItemIndex = cart.items.findIndex(
-            item => item.product.toString() === productId && item.weight === itemWeight
+            item => item.productId === productId && item.weight === (weight || '')
         );
-
-        console.log('Existing item index:', existingItemIndex);
 
         if (existingItemIndex > -1) {
             cart.items[existingItemIndex].quantity += quantity;
         } else {
             cart.items.push({
-                product: productId,
+                productId: productId,
+                productName: productName || '',
+                productImage: productImage || '',
                 quantity: quantity,
-                weight: itemWeight,
-                price: itemPrice
+                weight: weight || '',
+                price: price
             });
         }
 
         // Recalculate total
-        cart.totalAmount = 0;
-        for (const item of cart.items) {
-            cart.totalAmount += item.price * item.quantity;
-        }
+        cart.totalAmount = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
 
         await cart.save();
-        console.log('Cart saved, items:', cart.items.length, 'total:', cart.totalAmount);
 
         res.setHeader('guest-id', guestId);
-        res.setHeader('Access-Control-Allow-Headers', 'guest-id');
 
         res.json({
             message: "Product added to cart",
-            data: {
-                _id: cart._id,
-                guestId: cart.guestId,
-                items: cart.items,
-                totalAmount: cart.totalAmount
-            },
+            data: cart,
             error: false,
             success: true
         });
@@ -233,29 +194,6 @@ clientCartRouter.delete('/remove/:itemId', async (req, res) => {
         });
     } catch (error) {
         console.error('Cart remove error:', error);
-        res.status(500).json({
-            message: error.message,
-            error: true,
-            success: false
-        });
-    }
-});
-
-clientCartRouter.delete('/clear', async (req, res) => {
-    try {
-        const guestId = getGuestId(req);
-
-        if (guestId) {
-            await CartModel.findOneAndDelete({ guestId });
-        }
-
-        res.json({
-            message: "Cart cleared",
-            error: false,
-            success: true
-        });
-    } catch (error) {
-        console.error('Cart clear error:', error);
         res.status(500).json({
             message: error.message,
             error: true,
