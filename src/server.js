@@ -14,19 +14,9 @@ import clientOrderRouter from './routes/clientOrder.route.js';
 const app = express();
 
 const corsOptions = {
-    origin: (origin, callback) => {
-        const allowedOrigins = [
-            process.env.FRONTEND_URL || 'http://localhost:3000',
-            'https://gram2ghor-frontend.vercel.app',
-            'https://gram2ghor-frontend.vercel.app/'
-        ];
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'guest-id']
 }
 app.use(cors(corsOptions))
 
