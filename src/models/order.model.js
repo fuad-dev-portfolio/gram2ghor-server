@@ -30,14 +30,9 @@ const orderSchema = new Schema({
         required: true,
         unique: true
     },
-    user: {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-        default: null
-    },
     guestId: {
         type: String,
-        default: null
+        required: true
     },
     customerName: {
         type: String,

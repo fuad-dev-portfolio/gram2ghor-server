@@ -5,29 +5,25 @@ import ProductModel from '../models/product.model.js';
 const clientCartRouter = Router();
 
 const getGuestId = (req) => {
-    return req.cookies?.guestId || req.headers['guest-id'] || null;
+    return req.headers['guest-id'] || null;
 };
 
 clientCartRouter.get('/get', async (req, res) => {
     try {
-        const userId = req.user?._id;
-        const guestId = getGuestId(req);
+        const guestId = getGuestId(req) || `guest_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 
-        let cart = await CartModel.findOne({
-            $or: [
-                { user: userId },
-                { guestId: guestId }
-            ]
-        }).populate('items.product');
+        let cart = await CartModel.findOne({ guestId }).populate('items.product');
 
         if (!cart) {
             cart = new CartModel({
-                user: userId || null,
-                guestId: guestId || null,
+                guestId,
                 items: [],
                 totalAmount: 0
             });
+            await cart.save();
         }
+
+        res.setHeader('guest-id', guestId);
 
         return res.json({
             message: "Cart data",
@@ -36,6 +32,7 @@ clientCartRouter.get('/get', async (req, res) => {
             success: true
         });
     } catch (error) {
+        console.error('Cart get error:', error);
         return res.status(500).json({
             message: error.message,
             error: true,
@@ -47,8 +44,15 @@ clientCartRouter.get('/get', async (req, res) => {
 clientCartRouter.post('/add', async (req, res) => {
     try {
         const { productId, quantity = 1, weight, price } = req.body;
-        const userId = req.user?._id;
-        const guestId = getGuestId(req) || `guest_${Date.now()}`;
+        let guestId = getGuestId(req) || `guest_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+
+        if (!productId) {
+            return res.status(400).json({
+                message: "Product ID is required",
+                error: true,
+                success: false
+            });
+        }
 
         const product = await ProductModel.findById(productId);
         if (!product) {
@@ -59,17 +63,11 @@ clientCartRouter.post('/add', async (req, res) => {
             });
         }
 
-        let cart = await CartModel.findOne({
-            $or: [
-                { user: userId },
-                { guestId: guestId }
-            ]
-        });
+        let cart = await CartModel.findOne({ guestId });
 
         if (!cart) {
             cart = new CartModel({
-                user: userId || null,
-                guestId: userId ? null : guestId,
+                guestId,
                 items: [],
                 totalAmount: 0
             });
@@ -91,6 +89,7 @@ clientCartRouter.post('/add', async (req, res) => {
         }
 
         await cart.save();
+        res.setHeader('guest-id', guestId);
 
         return res.json({
             message: "Product added to cart",
@@ -99,6 +98,7 @@ clientCartRouter.post('/add', async (req, res) => {
             success: true
         });
     } catch (error) {
+        console.error('Cart add error:', error);
         return res.status(500).json({
             message: error.message,
             error: true,
@@ -110,15 +110,17 @@ clientCartRouter.post('/add', async (req, res) => {
 clientCartRouter.put('/update', async (req, res) => {
     try {
         const { itemId, quantity } = req.body;
-        const userId = req.user?._id;
-        const guestId = getGuestId(req);
+        let guestId = getGuestId(req);
 
-        const cart = await CartModel.findOne({
-            $or: [
-                { user: userId },
-                { guestId: guestId }
-            ]
-        });
+        if (!guestId) {
+            return res.status(400).json({
+                message: "Guest ID required",
+                error: true,
+                success: false
+            });
+        }
+
+        const cart = await CartModel.findOne({ guestId });
 
         if (!cart) {
             return res.status(404).json({
@@ -145,6 +147,7 @@ clientCartRouter.put('/update', async (req, res) => {
             success: true
         });
     } catch (error) {
+        console.error('Cart update error:', error);
         return res.status(500).json({
             message: error.message,
             error: true,
@@ -156,15 +159,17 @@ clientCartRouter.put('/update', async (req, res) => {
 clientCartRouter.delete('/remove/:itemId', async (req, res) => {
     try {
         const { itemId } = req.params;
-        const userId = req.user?._id;
-        const guestId = getGuestId(req);
+        let guestId = getGuestId(req);
 
-        const cart = await CartModel.findOne({
-            $or: [
-                { user: userId },
-                { guestId: guestId }
-            ]
-        });
+        if (!guestId) {
+            return res.status(400).json({
+                message: "Guest ID required",
+                error: true,
+                success: false
+            });
+        }
+
+        const cart = await CartModel.findOne({ guestId });
 
         if (!cart) {
             return res.status(404).json({
@@ -184,6 +189,7 @@ clientCartRouter.delete('/remove/:itemId', async (req, res) => {
             success: true
         });
     } catch (error) {
+        console.error('Cart remove error:', error);
         return res.status(500).json({
             message: error.message,
             error: true,
@@ -194,15 +200,11 @@ clientCartRouter.delete('/remove/:itemId', async (req, res) => {
 
 clientCartRouter.delete('/clear', async (req, res) => {
     try {
-        const userId = req.user?._id;
-        const guestId = getGuestId(req);
+        let guestId = getGuestId(req);
 
-        await CartModel.findOneAndDelete({
-            $or: [
-                { user: userId },
-                { guestId: guestId }
-            ]
-        });
+        if (guestId) {
+            await CartModel.findOneAndDelete({ guestId });
+        }
 
         return res.json({
             message: "Cart cleared",
@@ -210,6 +212,7 @@ clientCartRouter.delete('/clear', async (req, res) => {
             success: true
         });
     } catch (error) {
+        console.error('Cart clear error:', error);
         return res.status(500).json({
             message: error.message,
             error: true,

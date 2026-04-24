@@ -4,10 +4,8 @@ import CartModel from '../models/cart.model.js';
 
 const clientOrderRouter = Router();
 
-const generateOrderId = () => {
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const random = Math.random().toString(36).substring(2, 7).toUpperCase();
-    return `GG-${timestamp}${random}`;
+const getGuestId = (req) => {
+    return req.headers['guest-id'] || null;
 };
 
 clientOrderRouter.post('/create', async (req, res) => {
@@ -22,15 +20,17 @@ clientOrderRouter.post('/create', async (req, res) => {
             notes = ''
         } = req.body;
         
-        const userId = req.user?._id || null;
-        const guestId = req.headers['guest-id'] || null;
+        let guestId = getGuestId(req);
 
-        let cart = await CartModel.findOne({
-            $or: [
-                { user: userId },
-                { guestId: guestId }
-            ]
-        }).populate('items.product');
+        if (!guestId) {
+            return res.status(400).json({
+                message: "Guest ID required",
+                error: true,
+                success: false
+            });
+        }
+
+        let cart = await CartModel.findOne({ guestId }).populate('items.product');
 
         if (!cart || cart.items.length === 0) {
             return res.status(400).json({
@@ -63,9 +63,7 @@ clientOrderRouter.post('/create', async (req, res) => {
         const totalAmount = subtotal + deliveryCharge;
 
         const order = new OrderModel({
-            orderId: generateOrderId(),
-            user: userId,
-            guestId: userId ? null : guestId,
+            guestId,
             customerName,
             customerPhone,
             customerEmail: customerEmail || '',
@@ -80,8 +78,7 @@ clientOrderRouter.post('/create', async (req, res) => {
         });
 
         await order.save();
-
-        await CartModel.findByIdAndDelete(cart._id);
+        await CartModel.findOneAndDelete({ guestId });
 
         return res.json({
             message: "Order placed successfully",
@@ -90,6 +87,7 @@ clientOrderRouter.post('/create', async (req, res) => {
             success: true
         });
     } catch (error) {
+        console.error('Order create error:', error);
         return res.status(500).json({
             message: error.message,
             error: true,
@@ -100,15 +98,18 @@ clientOrderRouter.post('/create', async (req, res) => {
 
 clientOrderRouter.get('/list', async (req, res) => {
     try {
-        const userId = req.user?._id;
-        const guestId = req.headers['guest-id'] || null;
+        let guestId = getGuestId(req);
 
-        const orders = await OrderModel.find({
-            $or: [
-                { user: userId },
-                { guestId: guestId }
-            ]
-        }).sort({ createdAt: -1 });
+        if (!guestId) {
+            return res.json({
+                message: "Order list",
+                data: [],
+                error: false,
+                success: true
+            });
+        }
+
+        const orders = await OrderModel.find({ guestId }).sort({ createdAt: -1 });
 
         return res.json({
             message: "Order list",
@@ -117,6 +118,7 @@ clientOrderRouter.get('/list', async (req, res) => {
             success: true
         });
     } catch (error) {
+        console.error('Order list error:', error);
         return res.status(500).json({
             message: error.message,
             error: true,
@@ -128,16 +130,14 @@ clientOrderRouter.get('/list', async (req, res) => {
 clientOrderRouter.get('/:orderId', async (req, res) => {
     try {
         const { orderId } = req.params;
-        const userId = req.user?._id;
-        const guestId = req.headers['guest-id'] || null;
+        let guestId = getGuestId(req);
 
-        const order = await OrderModel.findOne({
-            orderId,
-            $or: [
-                { user: userId },
-                { guestId: guestId }
-            ]
-        });
+        const query = { orderId };
+        if (guestId) {
+            query.guestId = guestId;
+        }
+
+        const order = await OrderModel.findOne(query);
 
         if (!order) {
             return res.status(404).json({
@@ -154,6 +154,7 @@ clientOrderRouter.get('/:orderId', async (req, res) => {
             success: true
         });
     } catch (error) {
+        console.error('Order get error:', error);
         return res.status(500).json({
             message: error.message,
             error: true,

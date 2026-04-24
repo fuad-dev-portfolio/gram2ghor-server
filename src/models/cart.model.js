@@ -22,14 +22,9 @@ const cartItemSchema = new Schema({
 }, { _id: true });
 
 const cartSchema = new Schema({
-    user: {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-        default: null
-    },
     guestId: {
         type: String,
-        default: null
+        required: true
     },
     items: [cartItemSchema],
     totalAmount: {
