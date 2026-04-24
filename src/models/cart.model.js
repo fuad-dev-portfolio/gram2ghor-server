@@ -3,7 +3,7 @@ import mongoose, { Schema, model } from 'mongoose';
 const cartItemSchema = new Schema({
     productId: {
         type: String,
-        required: true
+        default: null
     },
     productName: {
         type: String,
@@ -24,7 +24,7 @@ const cartItemSchema = new Schema({
     },
     price: {
         type: Number,
-        required: true
+        default: 0
     }
 }, { _id: true });
 

@@ -70,6 +70,17 @@ clientCartRouter.post('/add', async (req, res) => {
             });
         }
 
+        // Clean up old items - check if any item has old 'product' field
+        const hasOldFormat = cart.items.some(item => item.product && !item.productId);
+        if (hasOldFormat) {
+            await CartModel.deleteOne({ guestId });
+            cart = new CartModel({
+                guestId: guestId,
+                items: [],
+                totalAmount: 0
+            });
+        }
+
         // Check if item already exists
         const existingItemIndex = cart.items.findIndex(
             item => item.productId === productId && item.weight === (weight || '')
