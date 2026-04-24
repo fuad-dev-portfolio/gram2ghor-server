@@ -24,7 +24,8 @@ const cartItemSchema = new Schema({
 const cartSchema = new Schema({
     guestId: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     items: [cartItemSchema],
     totalAmount: {
@@ -33,11 +34,6 @@ const cartSchema = new Schema({
     }
 }, {
     timestamps: true
-});
-
-cartSchema.pre('save', function(next) {
-    this.totalAmount = this.items.reduce((total, item) => total + (item.price * item.quantity), 0);
-    next();
 });
 
 const CartModel = model('Cart', cartSchema);
