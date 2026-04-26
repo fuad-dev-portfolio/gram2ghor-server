@@ -29,6 +29,10 @@ const orderItemSchema = new Schema({
     totalPrice: {
         type: Number,
         required: true
+    },
+    weightIndex: {
+        type: Number,
+        default: 0
     }
 });
 
