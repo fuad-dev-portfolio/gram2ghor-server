@@ -9,7 +9,8 @@ export const createProductController = async (request, response) => {
             lastName,
             category,
             weights,
-            description
+            description,
+            qa
         } = request.body;
 
         const files = request.files || {};
@@ -71,13 +72,21 @@ export const createProductController = async (request, response) => {
             };
         });
 
+        let qaArray = [];
+        try {
+            qaArray = typeof qa === 'string' ? JSON.parse(qa) : (qa || []);
+        } catch (error) {
+            qaArray = [];
+        }
+
         const product = new ProductModel({
             cover_image,
             firstName,
             lastName: lastName || "",
             category: categoryId,
             weights: processedWeights,
-            description: description || ""
+            description: description || "",
+            qa: qaArray
         });
 
         const saveProduct = await product.save();

@@ -20,6 +20,17 @@ const weightSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
+const qaSchema = new mongoose.Schema({
+    question: {
+        type: String,
+        required: true
+    },
+    answer: {
+        type: String,
+        required: true
+    }
+}, { _id: true });
+
 const productSchema = new mongoose.Schema({
     cover_image: {
         type: String,
@@ -42,7 +53,8 @@ const productSchema = new mongoose.Schema({
     description: {
         type: String,
         default: ""
-    }
+    },
+    qa: [qaSchema]
 }, {
     timestamps: true
 });
