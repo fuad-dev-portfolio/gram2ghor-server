@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import CartModel from '../models/cart.model.js';
+import ProductModel from '../models/product.model.js';
 
 const clientCartRouter = Router();
 
@@ -60,6 +61,25 @@ clientCartRouter.post('/add', async (req, res) => {
             });
         }
 
+        // Check stock before adding
+        const product = await ProductModel.findById(productId);
+        if (product && product.weights && product.weights[weightIndex] !== undefined) {
+            const availableStock = product.weights[weightIndex]?.stock || 0;
+            if (availableStock < quantity) {
+                return res.status(400).json({
+                    message: `Only ${availableStock} items available in stock`,
+                    error: true,
+                    success: false
+                });
+            }
+        } else {
+            return res.status(400).json({
+                message: "Product not found",
+                error: true,
+                success: false
+            });
+        }
+
         let cart = await CartModel.findOne({ guestId });
         
         if (!cart) {
@@ -81,13 +101,24 @@ clientCartRouter.post('/add', async (req, res) => {
             });
         }
 
-        // Check if item already exists
+        // Check if item already exists - also validate total quantity doesn't exceed stock
         const existingItemIndex = cart.items.findIndex(
             item => item.productId === productId && item.weight === (weight || '') && item.weightIndex === (weightIndex || 0)
         );
 
+        let newQuantity = quantity;
         if (existingItemIndex > -1) {
-            cart.items[existingItemIndex].quantity += quantity;
+            newQuantity = cart.items[existingItemIndex].quantity + quantity;
+            // Check stock for total quantity
+            const currentStock = product.weights[weightIndex]?.stock || 0;
+            if (newQuantity > currentStock) {
+                return res.status(400).json({
+                    message: `Only ${currentStock} items available. You already have ${cart.items[existingItemIndex].quantity} in cart.`,
+                    error: true,
+                    success: false
+                });
+            }
+            cart.items[existingItemIndex].quantity = newQuantity;
         } else {
             cart.items.push({
                 productId: productId,
@@ -147,6 +178,23 @@ clientCartRouter.put('/update', async (req, res) => {
 
         const itemIndex = cart.items.findIndex(item => item._id.toString() === itemId);
         if (itemIndex > -1) {
+            const cartItem = cart.items[itemIndex];
+            
+            // Check stock availability when increasing quantity
+            if (quantity > cartItem.quantity) {
+                const product = await ProductModel.findById(cartItem.productId);
+                if (product && product.weights && product.weights[cartItem.weightIndex] !== undefined) {
+                    const availableStock = product.weights[cartItem.weightIndex]?.stock || 0;
+                    if (quantity > availableStock) {
+                        return res.status(400).json({
+                            message: `Only ${availableStock} items available in stock`,
+                            error: true,
+                            success: false
+                        });
+                    }
+                }
+            }
+            
             if (quantity > 0) {
                 cart.items[itemIndex].quantity = quantity;
             } else {
