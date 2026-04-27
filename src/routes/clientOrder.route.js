@@ -143,6 +143,37 @@ clientOrderRouter.get('/list', async (req, res) => {
     }
 });
 
+// Track order by phone number (for customers)
+clientOrderRouter.post('/track', async (req, res) => {
+    try {
+        const { phone } = req.body;
+
+        if (!phone) {
+            return res.status(400).json({
+                message: "Phone number is required",
+                error: true,
+                success: false
+            });
+        }
+
+        const orders = await OrderModel.find({ customerPhone: phone }).sort({ createdAt: -1 });
+
+        res.json({
+            message: "Orders found",
+            data: orders,
+            error: false,
+            success: true
+        });
+    } catch (error) {
+        console.error('Track order error:', error);
+        res.status(500).json({
+            message: error.message,
+            error: true,
+            success: false
+        });
+    }
+});
+
 clientOrderRouter.get('/:orderId', async (req, res) => {
     try {
         const { orderId } = req.params;

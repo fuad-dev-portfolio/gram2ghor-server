@@ -348,3 +348,96 @@ export const getOrderStatsController = async (request, response) => {
         });
     }
 };
+
+export const confirmOrderController = async (request, response) => {
+    try {
+        const { orderId, deliveryDate, adminNotes } = request.body;
+
+        if (!orderId) {
+            return response.status(400).json({
+                message: "Order ID is required",
+                error: true,
+                success: false
+            });
+        }
+
+        const order = await OrderModel.findOne({ orderId });
+
+        if (!order) {
+            return response.status(404).json({
+                message: "Order not found",
+                error: true,
+                success: false
+            });
+        }
+
+        if (order.orderStatus !== 'pending') {
+            return response.status(400).json({
+                message: "Order is not in pending status",
+                error: true,
+                success: false
+            });
+        }
+
+        let returnAvailableUntil = null;
+        if (deliveryDate) {
+            const delivery = new Date(deliveryDate);
+            returnAvailableUntil = new Date(delivery);
+            returnAvailableUntil.setDate(returnAvailableUntil.getDate() + 3);
+        }
+
+        order.orderStatus = 'confirmed';
+        order.deliveryDate = deliveryDate ? new Date(deliveryDate) : null;
+        order.returnAvailableUntil = returnAvailableUntil;
+        order.confirmedAt = new Date();
+        if (adminNotes) {
+            order.adminNotes = adminNotes;
+        }
+
+        await order.save();
+
+        return response.json({
+            message: "Order confirmed successfully",
+            data: order,
+            error: false,
+            success: true
+        });
+
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        });
+    }
+};
+
+export const getOrdersByPhoneController = async (request, response) => {
+    try {
+        const { phone } = request.body;
+
+        if (!phone) {
+            return response.status(400).json({
+                message: "Phone number is required",
+                error: true,
+                success: false
+            });
+        }
+
+        const orders = await OrderModel.find({ customerPhone: phone }).sort({ createdAt: -1 });
+
+        return response.json({
+            message: "Orders fetched successfully",
+            data: orders,
+            error: false,
+            success: true
+        });
+
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        });
+    }
+};

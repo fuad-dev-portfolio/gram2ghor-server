@@ -80,15 +80,43 @@ const orderSchema = new Schema({
     },
     paymentStatus: {
         type: String,
-        enum: ['pending', 'paid', 'failed'],
+        enum: ['pending', 'paid', 'failed', 'refunded'],
         default: 'pending'
     },
     orderStatus: {
         type: String,
-        enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
+        enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'return_requested', 'returned'],
         default: 'pending'
     },
-    notes: String
+    deliveryDate: {
+        type: Date,
+        default: null
+    },
+    returnAvailableUntil: {
+        type: Date,
+        default: null
+    },
+    confirmedAt: {
+        type: Date,
+        default: null
+    },
+    deliveredAt: {
+        type: Date,
+        default: null
+    },
+    cancelledAt: {
+        type: Date,
+        default: null
+    },
+    cancelledReason: {
+        type: String,
+        default: ''
+    },
+    notes: String,
+    adminNotes: {
+        type: String,
+        default: ''
+    }
 }, {
     timestamps: true
 });
