@@ -22,6 +22,10 @@ const cartItemSchema = new Schema({
         type: String,
         default: ''
     },
+    weightIndex: {
+        type: Number,
+        default: 0
+    },
     price: {
         type: Number,
         default: 0

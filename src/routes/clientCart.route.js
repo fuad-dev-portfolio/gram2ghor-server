@@ -45,7 +45,7 @@ clientCartRouter.get('/get', async (req, res) => {
 
 clientCartRouter.post('/add', async (req, res) => {
     try {
-        const { productId, productName, productImage, quantity = 1, weight, price } = req.body;
+        const { productId, productName, productImage, quantity = 1, weight, weightIndex = 0, price } = req.body;
         let guestId = getGuestId(req);
         
         if (!guestId) {
@@ -83,7 +83,7 @@ clientCartRouter.post('/add', async (req, res) => {
 
         // Check if item already exists
         const existingItemIndex = cart.items.findIndex(
-            item => item.productId === productId && item.weight === (weight || '')
+            item => item.productId === productId && item.weight === (weight || '') && item.weightIndex === (weightIndex || 0)
         );
 
         if (existingItemIndex > -1) {
@@ -95,6 +95,7 @@ clientCartRouter.post('/add', async (req, res) => {
                 productImage: productImage || '',
                 quantity: quantity,
                 weight: weight || '',
+                weightIndex: weightIndex || 0,
                 price: price
             });
         }

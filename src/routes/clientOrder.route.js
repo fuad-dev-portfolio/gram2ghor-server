@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import OrderModel from '../models/order.model.js';
 import CartModel from '../models/cart.model.js';
+import ProductModel from '../models/product.model.js';
 
 const clientOrderRouter = Router();
 
@@ -63,6 +64,7 @@ clientOrderRouter.post('/create', async (req, res) => {
             productImage: item.productImage,
             quantity: item.quantity,
             weight: item.weight,
+            weightIndex: item.weightIndex || 0,
             price: item.price,
             totalPrice: item.price * item.quantity
         }));
@@ -92,6 +94,16 @@ clientOrderRouter.post('/create', async (req, res) => {
         });
 
         await order.save();
+
+        // Decrease stock for each item
+        for (const item of orderItems) {
+            if (item.weightIndex !== undefined && item.weightIndex !== null) {
+                await ProductModel.updateOne(
+                    { _id: item.productId },
+                    { $inc: { [`weights.${item.weightIndex}.stock`]: -item.quantity } }
+                );
+            }
+        }
         
         // Clear cart after order
         await CartModel.deleteOne({ guestId });
