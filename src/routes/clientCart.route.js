@@ -49,6 +49,10 @@ clientCartRouter.post('/add', async (req, res) => {
         const { productId, productName, productImage, quantity = 1, weight, weightIndex = 0, price } = req.body;
         let guestId = getGuestId(req);
         
+        // Ensure weightIndex is a number
+        const weightIdx = Number(weightIndex) || 0;
+        const qty = Number(quantity) || 1;
+        
         if (!guestId) {
             guestId = `guest_${Date.now()}`;
         }
@@ -61,20 +65,21 @@ clientCartRouter.post('/add', async (req, res) => {
             });
         }
 
-        // Check stock before adding
+        // Check stock before adding - convert productId to ObjectId if needed
         const product = await ProductModel.findById(productId);
-        if (product && product.weights && product.weights[weightIndex] !== undefined) {
-            const availableStock = product.weights[weightIndex]?.stock || 0;
-            if (availableStock < quantity) {
-                return res.status(400).json({
-                    message: `Only ${availableStock} items available in stock`,
-                    error: true,
-                    success: false
-                });
-            }
-        } else {
+        
+        if (!product || !product.weights || !product.weights[weightIdx]) {
             return res.status(400).json({
-                message: "Product not found",
+                message: "Product or weight variant not found",
+                error: true,
+                success: false
+            });
+        }
+
+        const availableStock = product.weights[weightIdx]?.stock || 0;
+        if (availableStock < qty) {
+            return res.status(400).json({
+                message: `Only ${availableStock} items available in stock`,
                 error: true,
                 success: false
             });
@@ -101,16 +106,16 @@ clientCartRouter.post('/add', async (req, res) => {
             });
         }
 
-        // Check if item already exists - also validate total quantity doesn't exceed stock
+        // Check if item already exists with same productId and weightIndex
         const existingItemIndex = cart.items.findIndex(
-            item => item.productId === productId && item.weight === (weight || '') && item.weightIndex === (weightIndex || 0)
+            item => item.productId === productId && item.weightIndex === weightIdx
         );
 
-        let newQuantity = quantity;
+        let newQuantity = qty;
         if (existingItemIndex > -1) {
-            newQuantity = cart.items[existingItemIndex].quantity + quantity;
+            newQuantity = cart.items[existingItemIndex].quantity + qty;
             // Check stock for total quantity
-            const currentStock = product.weights[weightIndex]?.stock || 0;
+            const currentStock = product.weights[weightIdx]?.stock || 0;
             if (newQuantity > currentStock) {
                 return res.status(400).json({
                     message: `Only ${currentStock} items available. You already have ${cart.items[existingItemIndex].quantity} in cart.`,
@@ -124,15 +129,17 @@ clientCartRouter.post('/add', async (req, res) => {
                 productId: productId,
                 productName: productName || '',
                 productImage: productImage || '',
-                quantity: quantity,
+                quantity: qty,
                 weight: weight || '',
-                weightIndex: weightIndex || 0,
+                weightIndex: weightIdx,
                 price: price
             });
         }
 
-        // Recalculate total
-        cart.totalAmount = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+        // Recalculate total - each item price * quantity
+        cart.totalAmount = cart.items.reduce((total, item) => {
+            return total + (item.price * item.quantity);
+        }, 0);
 
         await cart.save();
 
@@ -179,13 +186,14 @@ clientCartRouter.put('/update', async (req, res) => {
         const itemIndex = cart.items.findIndex(item => item._id.toString() === itemId);
         if (itemIndex > -1) {
             const cartItem = cart.items[itemIndex];
+            const newQty = Number(quantity) || 0;
             
             // Check stock availability when increasing quantity
-            if (quantity > cartItem.quantity) {
+            if (newQty > cartItem.quantity) {
                 const product = await ProductModel.findById(cartItem.productId);
                 if (product && product.weights && product.weights[cartItem.weightIndex] !== undefined) {
                     const availableStock = product.weights[cartItem.weightIndex]?.stock || 0;
-                    if (quantity > availableStock) {
+                    if (newQty > availableStock) {
                         return res.status(400).json({
                             message: `Only ${availableStock} items available in stock`,
                             error: true,
@@ -195,8 +203,8 @@ clientCartRouter.put('/update', async (req, res) => {
                 }
             }
             
-            if (quantity > 0) {
-                cart.items[itemIndex].quantity = quantity;
+            if (newQty > 0) {
+                cart.items[itemIndex].quantity = newQty;
             } else {
                 cart.items.splice(itemIndex, 1);
             }
