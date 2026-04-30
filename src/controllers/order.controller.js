@@ -125,7 +125,7 @@ export const getAllOrdersController = async (request, response) => {
             ];
         }
 
-        if (status) {
+        if (status && status !== 'all') {
             query.orderStatus = status;
         }
 
