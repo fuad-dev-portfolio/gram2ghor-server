@@ -74,4 +74,55 @@ clientProductRouter.get('/product/:id', async (req, res) => {
     }
 });
 
+clientProductRouter.get('/top-selling', async (req, res) => {
+    try {
+        const { limit } = req.query;
+        const limitNum = limit ? parseInt(limit) : 20;
+
+        const OrderModel = (await import('../models/order.model.js')).default;
+
+        const topSelling = await OrderModel.aggregate([
+            { $unwind: '$items' },
+            {
+                $group: {
+                    _id: '$items.productId',
+                    totalSold: { $sum: '$items.quantity' }
+                }
+            },
+            { $sort: { totalSold: -1 } },
+            { $limit: limitNum }
+        ]);
+
+        const productIds = topSelling.map(item => item._id);
+
+        const products = await ProductModel.find({
+            _id: { $in: productIds }
+        }).populate('category');
+
+        const productsWithSales = products.map(product => {
+            const salesData = topSelling.find(item => item._id === product._id.toString());
+            return {
+                ...product.toObject(),
+                totalSold: salesData ? salesData.totalSold : 0
+            };
+        });
+
+        productsWithSales.sort((a, b) => b.totalSold - a.totalSold);
+
+        return res.json({
+            message: "Top selling products",
+            error: false,
+            success: true,
+            data: productsWithSales
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        });
+    }
+});
+
 export default clientProductRouter;
