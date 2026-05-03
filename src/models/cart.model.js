@@ -29,6 +29,10 @@ const cartItemSchema = new Schema({
     price: {
         type: Number,
         default: 0
+    },
+    discountPercent: {
+        type: Number,
+        default: 0
     }
 }, { _id: true });
 

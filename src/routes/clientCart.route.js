@@ -46,7 +46,7 @@ clientCartRouter.get('/get', async (req, res) => {
 
 clientCartRouter.post('/add', async (req, res) => {
     try {
-        const { productId, productName, productImage, quantity = 1, weight, weightIndex = 0, price } = req.body;
+        const { productId, productName, productImage, quantity = 1, weight, weightIndex = 0, price, discountPercent = 0 } = req.body;
         let guestId = getGuestId(req);
         
         // Ensure weightIndex is a number
@@ -124,6 +124,7 @@ clientCartRouter.post('/add', async (req, res) => {
                 });
             }
             cart.items[existingItemIndex].quantity = newQuantity;
+            cart.items[existingItemIndex].discountPercent = discountPercent || 0;
         } else {
             cart.items.push({
                 productId: productId,
@@ -132,13 +133,15 @@ clientCartRouter.post('/add', async (req, res) => {
                 quantity: qty,
                 weight: weight || '',
                 weightIndex: weightIdx,
-                price: price
+                price: price,
+                discountPercent: discountPercent || 0
             });
         }
 
-        // Recalculate total - each item price * quantity
+        // Recalculate total - each item price * quantity (after discount)
         cart.totalAmount = cart.items.reduce((total, item) => {
-            return total + (item.price * item.quantity);
+            const discountedPrice = item.price - (item.price * (item.discountPercent || 0) / 100);
+            return total + (discountedPrice * item.quantity);
         }, 0);
 
         await cart.save();
@@ -208,7 +211,10 @@ clientCartRouter.put('/update', async (req, res) => {
             } else {
                 cart.items.splice(itemIndex, 1);
             }
-            cart.totalAmount = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+            cart.totalAmount = cart.items.reduce((total, item) => {
+                const discountedPrice = item.price - (item.price * (item.discountPercent || 0) / 100);
+                return total + (discountedPrice * item.quantity);
+            }, 0);
             await cart.save();
         }
 
@@ -251,7 +257,10 @@ clientCartRouter.delete('/remove/:itemId', async (req, res) => {
         }
 
         cart.items = cart.items.filter(item => item._id.toString() !== itemId);
-        cart.totalAmount = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+        cart.totalAmount = cart.items.reduce((total, item) => {
+            const discountedPrice = item.price - (item.price * (item.discountPercent || 0) / 100);
+            return total + (discountedPrice * item.quantity);
+        }, 0);
         await cart.save();
 
         res.json({

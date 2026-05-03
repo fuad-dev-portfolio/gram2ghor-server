@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { createProductController, deleteProductDetails, getProductByCategory, getProductController, getProductDetails, searchProduct, updateProductDetails } from '../controllers/product.controller.js'
+import { createProductController, deleteProductDetails, getProductByCategory, getProductController, getProductDetails, searchProduct, updateProductDetails, updateProductDiscount } from '../controllers/product.controller.js'
 import cloudinary_upload, { processAndUploadImages } from '../middlewares/uploadImage.js'
 
 const productRouter = Router()
@@ -31,5 +31,6 @@ productRouter.put('/update-product-details', updateProductDetails)
 productRouter.delete('/delete-product', deleteProductDetails)
 
 productRouter.post('/search-product', searchProduct)
+productRouter.post('/update-discount', updateProductDiscount)
 
 export default productRouter

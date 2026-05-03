@@ -260,6 +260,48 @@ export const deleteProductDetails = async (request, response) => {
     }
 };
 
+export const updateProductDiscount = async (request, response) => {
+    try {
+        const { productId, weightIndex, discountPercent } = request.body;
+
+        if (!productId) {
+            return response.status(400).json({
+                message: "provide productId",
+                error: true,
+                success: false
+            });
+        }
+
+        const product = await ProductModel.findById(productId);
+        if (!product) {
+            return response.status(404).json({
+                message: "Product not found",
+                error: true,
+                success: false
+            });
+        }
+
+        if (weightIndex !== undefined && product.weights[weightIndex]) {
+            product.weights[weightIndex].discountPercent = discountPercent || 0;
+            await product.save();
+        }
+
+        return response.json({
+            message: "Discount updated successfully",
+            data: product,
+            error: false,
+            success: true
+        });
+
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        });
+    }
+};
+
 export const searchProduct = async (request, response) => {
     try {
         let { search, page, limit } = request.body;

@@ -14,6 +14,12 @@ const weightSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    discountPercent: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100
+    },
     images: {
         type: Array,
         default: []
