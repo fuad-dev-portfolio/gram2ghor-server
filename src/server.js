@@ -11,6 +11,7 @@ import clientProductRouter from './routes/clientProduct.route.js';
 import clientCartRouter from './routes/clientCart.route.js';
 import clientOrderRouter from './routes/clientOrder.route.js';
 import orderRouter from './routes/order.route.js';
+import contactMessageRouter from './routes/contactMessage.route.js';
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use("/api/client/product", clientProductRouter);
 app.use("/api/client/cart", clientCartRouter);
 app.use("/api/client/order", clientOrderRouter);
 app.use("/api/admin/order", orderRouter);
+app.use("/api/client/contact", contactMessageRouter);
 
 connectDB().then(() => {
     app.listen(PORT, () => {
