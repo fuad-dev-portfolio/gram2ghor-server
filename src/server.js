@@ -16,11 +16,13 @@ import contactMessageRouter from './routes/contactMessage.route.js';
 const app = express();
 
 const corsOptions = {
-    origin: '*',
+    origin: process.env.FRONTEND_URL ? [process.env.FRONTEND_URL, process.env.FRONTEND_URL.replace(/\/$/, '')] : true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'guest-id']
+    allowedHeaders: ['Content-Type', 'guest-id'],
+    credentials: true
 }
 app.use(cors(corsOptions))
+app.options('*', cors(corsOptions))
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
