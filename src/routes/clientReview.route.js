@@ -1,11 +1,65 @@
 import { Router } from 'express';
+import multer from 'multer';
+import sharp from 'sharp';
+import cloudinary from '../config/cloudinary.js';
 import ReviewModel from '../models/review.model.js';
+
+const storage = multer.memoryStorage();
+const upload = multer({
+    storage,
+    limits: { fileSize: 50 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image and video files are allowed'), false);
+        }
+    }
+});
+
+const uploadToCloudinary = async (file) => {
+    const isVideo = file.mimetype.startsWith('video/');
+
+    if (isVideo) {
+        return new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                {
+                    folder: "Gram2ghor/reviews",
+                    resource_type: "video",
+                    eager: [{ streaming_profile: "hd", format: "m3u8" }],
+                    eager_async: true
+                },
+                (error, result) => {
+                    if (result) resolve({ type: 'video', url: result.secure_url });
+                    else reject(error);
+                }
+            );
+            stream.end(file.buffer);
+        });
+    }
+
+    const optimizedBuffer = await sharp(file.buffer)
+        .resize({ width: 1000, withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toBuffer();
+
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { folder: "Gram2ghor/reviews", format: "webp" },
+            (error, result) => {
+                if (result) resolve({ type: 'image', url: result.secure_url });
+                else reject(error);
+            }
+        );
+        stream.end(optimizedBuffer);
+    });
+};
 
 const clientReviewRouter = Router();
 
-clientReviewRouter.post('/create', async (req, res) => {
+clientReviewRouter.post('/create', upload.array('media', 5), async (req, res) => {
     try {
-        const { name, rating, comment, image } = req.body;
+        const { name, rating, comment } = req.body;
 
         if (!name || !rating || !comment) {
             return res.status(400).json({
@@ -23,7 +77,13 @@ clientReviewRouter.post('/create', async (req, res) => {
             });
         }
 
-        const review = new ReviewModel({ name, rating, comment, image: image || "" });
+        let media = [];
+        if (req.files && req.files.length > 0) {
+            const uploads = await Promise.all(req.files.map(uploadToCloudinary));
+            media = uploads;
+        }
+
+        const review = new ReviewModel({ name, rating, comment, media });
         await review.save();
 
         return res.status(201).json({

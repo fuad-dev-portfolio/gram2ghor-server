@@ -2,7 +2,7 @@ import ReviewModel from "../models/review.model.js";
 
 export const createReview = async (request, response) => {
     try {
-        const { name, rating, comment, image } = request.body;
+        const { name, rating, comment, media } = request.body;
 
         if (!name || !rating || !comment) {
             return response.status(400).json({
@@ -20,7 +20,8 @@ export const createReview = async (request, response) => {
             });
         }
 
-        const review = new ReviewModel({ name, rating, comment, image: image || "" });
+        const parsedMedia = media ? (typeof media === 'string' ? JSON.parse(media) : media) : [];
+        const review = new ReviewModel({ name, rating, comment, media: parsedMedia });
         await review.save();
 
         return response.status(201).json({

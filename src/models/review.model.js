@@ -1,5 +1,17 @@
 import mongoose from "mongoose";
 
+const mediaSchema = new mongoose.Schema({
+    type: {
+        type: String,
+        enum: ['image', 'video'],
+        required: true
+    },
+    url: {
+        type: String,
+        required: true
+    }
+}, { _id: false });
+
 const reviewSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -17,10 +29,7 @@ const reviewSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    image: {
-        type: String,
-        default: ""
-    }
+    media: [mediaSchema]
 }, {
     timestamps: true
 });
