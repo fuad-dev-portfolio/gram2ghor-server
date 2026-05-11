@@ -14,13 +14,16 @@ import orderRouter from './routes/order.route.js';
 import contactMessageRouter from './routes/contactMessage.route.js';
 import reviewRouter from './routes/review.route.js';
 import clientReviewRouter from './routes/clientReview.route.js';
+import authRouter from './routes/auth.route.js';
+import adminMgmtRouter from './routes/adminMgmt.route.js';
+import authMiddleware from './middlewares/auth.middleware.js';
 
 const app = express();
 
 const corsOptions = {
     origin: process.env.FRONTEND_URL ? [process.env.FRONTEND_URL, process.env.FRONTEND_URL.replace(/\/$/, '')] : true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'guest-id'],
+    allowedHeaders: ['Content-Type', 'guest-id', 'Authorization'],
     credentials: true
 }
 app.use(cors(corsOptions))
@@ -37,17 +40,19 @@ app.get("/", (request, response) => {
     })
 })
 
-app.use("/api/admin/category", categoryRouter);
-app.use("/api/admin/product", productRouter);
-app.use("/api/admin/header", headerRouter);
+app.use("/api/admin/category", authMiddleware, categoryRouter);
+app.use("/api/admin/product", authMiddleware, productRouter);
+app.use("/api/admin/header", authMiddleware, headerRouter);
 app.use("/api/client/header", clientHeaderRouter);
 app.use("/api/client/product", clientProductRouter);
 app.use("/api/client/cart", clientCartRouter);
 app.use("/api/client/order", clientOrderRouter);
-app.use("/api/admin/order", orderRouter);
+app.use("/api/admin/order", authMiddleware, orderRouter);
 app.use("/api/client/contact", contactMessageRouter);
-app.use("/api/admin/review", reviewRouter);
+app.use("/api/admin/review", authMiddleware, reviewRouter);
 app.use("/api/client/review", clientReviewRouter);
+app.use("/api/admin/auth", authRouter);
+app.use("/api/admin/admins", authMiddleware, adminMgmtRouter);
 
 connectDB().then(() => {
     app.listen(PORT, () => {
